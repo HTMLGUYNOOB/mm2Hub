@@ -1,0 +1,118 @@
+--// MM2 GUI with ESP Toggle & Working Shoot Murderer Button
+if game.PlaceId ~= 142823291 then
+    warn("Not in MM2.")
+    return
+end
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- GUI Setup
+local gui = Instance.new("ScreenGui", game.CoreGui)
+
+-- ESP Toggle Frame
+local espFrame = Instance.new("Frame", gui)
+espFrame.Size = UDim2.new(0, 160, 0, 40)
+espFrame.Position = UDim2.new(0, 30, 0, 150)
+espFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+espFrame.Active = true
+espFrame.Draggable = true
+
+local espLabel = Instance.new("TextLabel", espFrame)
+espLabel.Size = UDim2.new(0.6, 0, 1, 0)
+espLabel.Text = "ESP:"
+espLabel.BackgroundTransparency = 1
+espLabel.TextColor3 = Color3.new(1, 1, 1)
+espLabel.TextScaled = true
+
+local espToggle = Instance.new("TextButton", espFrame)
+espToggle.Position = UDim2.new(0.6, 5, 0.2, 0)
+espToggle.Size = UDim2.new(0.35, 0, 0.6, 0)
+espToggle.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+espToggle.Text = "OFF"
+espToggle.TextColor3 = Color3.new(1,1,1)
+espToggle.TextScaled = true
+
+-- Shoot Button
+local shootBtn = Instance.new("TextButton", gui)
+shootBtn.Size = UDim2.new(0, 160, 0, 40)
+shootBtn.Position = UDim2.new(0, 30, 0, 200)
+shootBtn.Text = "Shoot Murderer"
+shootBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+shootBtn.TextColor3 = Color3.new(1, 1, 1)
+shootBtn.TextScaled = true
+shootBtn.Active = true
+shootBtn.Draggable = true
+
+-- ESP Logic
+local espEnabled = false
+local espLoop
+
+local function setESP(state)
+    espEnabled = state
+    if state then
+        espToggle.Text = "ON"
+        espToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        espLoop = RunService.RenderStepped:Connect(function()
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    local esp = plr.Character:FindFirstChild("ESP")
+                    if not esp then
+                        esp = Instance.new("Highlight", plr.Character)
+                        esp.Name = "ESP"
+                        esp.OutlineColor = Color3.new(0, 0, 0)
+                    end
+
+                    local hasKnife = plr.Backpack:FindFirstChild("Knife") or plr.Character:FindFirstChild("Knife")
+                    local hasGun = plr.Backpack:FindFirstChild("Gun") or plr.Character:FindFirstChild("Gun")
+
+                    if hasKnife then
+                        esp.FillColor = Color3.new(1, 0, 0) -- Red
+                    elseif hasGun then
+                        esp.FillColor = Color3.new(0, 0.5, 1) -- Blue
+                    else
+                        esp.FillColor = Color3.new(1, 1, 1) -- White
+                    end
+                end
+            end
+        end)
+    else
+        espToggle.Text = "OFF"
+        espToggle.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+        if espLoop then espLoop:Disconnect() end
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr.Character and plr.Character:FindFirstChild("ESP") then
+                plr.Character.ESP:Destroy()
+            end
+        end
+    end
+end
+
+espToggle.MouseButton1Click:Connect(function()
+    setESP(not espEnabled)
+end)
+
+-- FIXED: Shoot when button is tapped
+shootBtn.MouseButton1Click:Connect(function()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local gun = char:FindFirstChild("Gun")
+    if not gun then return end
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local knife = plr.Backpack:FindFirstChild("Knife") or plr.Character:FindFirstChild("Knife")
+            if knife then
+                local targetPos = plr.Character.HumanoidRootPart.Position
+                ReplicatedStorage.Remotes.ShootGun:FireServer(targetPos)
+                break
+            end
+        end
+    end
+end)
+
+-- Turn on ESP by default
+setESP(true)
